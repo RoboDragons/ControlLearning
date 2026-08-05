@@ -13,7 +13,7 @@ RDS（RoboDragonsSystem）の制御学習，シミュレーション演習，お
 ## 🌐 Webスライドへのアクセス方法
 
 1. **GitHub Pages (24時間常時Web公開)**:
-   GitHub Pages を有効化することで，URL [資料](`https://robodragons.github.io/ControlLearning/slide/index.html`)経由でスマホ等どのデバイスからでも常時アクセス可能になります．
+   GitHub Pages を有効化することで，[資料](https://robodragons.github.io/ControlLearning/slide/index.html)経由でスマホ等どのデバイスからでも常時アクセス可能になります．
 2. **ローカルファイルで直接開く**:
    - [slide/index.html を開く](file:///c:/Users/shuu0/RoboDragons/ControlLearning/slide/index.html)
 3. **ローカルWebサーバー起動 (同一Wi-Fiのスマホ等からアクセス)**:
