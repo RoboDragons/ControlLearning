@@ -2,8 +2,8 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RDS 車輪速度制御モデル (wheel.m) - 課題解説スライド</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>RDS 車輪速度制御モデル (wheel.m) - Webスライド</title>
     
     <!-- MathJax 3 Configuration -->
     <script>
@@ -286,6 +286,41 @@
             opacity: 0.9;
         }
 
+        /* Responsive Styles (スマホ・タブレット対応) */
+        @media (max-width: 768px) {
+            header {
+                padding: 0.75rem 1rem;
+            }
+            .logo {
+                font-size: 1rem;
+            }
+            nav button {
+                padding: 0.4rem 0.6rem;
+                font-size: 0.8rem;
+            }
+            main {
+                padding: 0.75rem;
+            }
+            .slide-container {
+                padding: 1.25rem;
+                border-radius: 12px;
+                gap: 1rem;
+            }
+            .slide-title {
+                font-size: 1.2rem;
+            }
+            .content-grid, .sim-layout {
+                grid-template-columns: 1fr;
+            }
+            footer {
+                padding: 0.75rem 1rem;
+            }
+            .btn-nav {
+                padding: 0.5rem 0.9rem;
+                font-size: 0.85rem;
+            }
+        }
+
         /* Footer Controls */
         footer {
             display: flex;
@@ -295,28 +330,12 @@
             background-color: var(--bg-card);
             border-top: 1px solid var(--border-color);
         }
-
-        .btn-nav {
-            background: var(--accent-blue);
-            color: var(--bg-dark);
-            border: none;
-            padding: 0.6rem 1.2rem;
-            border-radius: 8px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: opacity 0.2s;
-        }
-
-        .btn-nav:disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-        }
     </style>
 </head>
 <body>
 
     <header>
-        <div class="logo">RDS WHEEL CONTROL // SLIDES</div>
+        <div class="logo">RDS WHEEL CONTROL // WEB SLIDES</div>
         <nav>
             <button class="nav-tab active" onclick="goToSlide(0)">スライド一覧</button>
             <button class="nav-tab" onclick="goToSlide(5)">シミュレータ</button>
@@ -331,10 +350,10 @@
                 <span class="slide-number">Slide 1 / 6</span>
             </div>
             <div class="card-box full-width" style="text-align: center; padding: 1.5rem 1.5rem;">
-                <h1 style="font-size: 2rem; margin-bottom: 0.75rem; background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                <h1 style="font-size: 1.8rem; margin-bottom: 0.75rem; background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
                     車輪速度制御モデル (wheel.m) 解説＆演習ガイド
                 </h1>
-                <p style="font-size: 1rem; color: var(--text-sub); margin-bottom: 1.25rem;">
+                <p style="font-size: 0.95rem; color: var(--text-sub); margin-bottom: 1.25rem;">
                     InternalSoftwareE2023 の同定モデル・状態空間表現・PID/FF制御・エンコーダ速度推定・車輪回転視覚化
                 </p>
                 
@@ -593,10 +612,10 @@
                 </div>
 
                 <div style="display: flex; flex-direction: column; gap: 1rem; min-width: 0;">
-                    <!-- 車輪回転ビジュアル & スピードメーター Canvas -->
-                    <div style="display: flex; gap: 1rem; align-items: center;">
-                        <canvas id="wheelAnimCanvas" width="180" height="180"></canvas>
-                        <div style="flex: 1; background: #0f172a; border-radius: 8px; border: 1px solid var(--border-color); padding: 0.85rem; font-size: 0.85rem;">
+                    <!-- 車輪回転ビジュアル Canvas -->
+                    <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+                        <canvas id="wheelAnimCanvas" width="160" height="160"></canvas>
+                        <div style="flex: 1; min-width: 200px; background: #0f172a; border-radius: 8px; border: 1px solid var(--border-color); padding: 0.85rem; font-size: 0.85rem;">
                             <h4 style="color: var(--accent-emerald); margin-bottom: 0.4rem;">リアルタイム車輪モニタ</h4>
                             <p>推定速度 $v_{fb}$: <strong id="disp-vfb" style="color: var(--accent-rose); font-size: 1.1rem;">0.0</strong> rad/s</p>
                             <p>モータ回転数: <strong id="disp-rpm" style="color: var(--accent-blue);">0.0</strong> rpm</p>
@@ -624,7 +643,6 @@
         const totalSlides = 6;
         let chartVelInstance = null;
 
-        // アニメーション用変数
         let animId = null;
         let isPlaying = false;
         let animStep = 0;
@@ -805,11 +823,10 @@
             const ctx = canvas.getContext('2d');
             const cx = canvas.width / 2;
             const cy = canvas.height / 2;
-            const radius = 65;
+            const radius = 55;
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // タイヤの外枠
             ctx.beginPath();
             ctx.arc(cx, cy, radius, 0, 2 * Math.PI);
             ctx.fillStyle = '#1e293b';
@@ -818,7 +835,6 @@
             ctx.lineWidth = 4;
             ctx.stroke();
 
-            // ホイールのスポーク (4本十字)
             ctx.save();
             ctx.translate(cx, cy);
             ctx.rotate(angle);
@@ -827,19 +843,17 @@
                 ctx.beginPath();
                 ctx.moveTo(0, 0);
                 ctx.lineTo(radius * 0.85 * Math.cos(i * Math.PI / 2), radius * 0.85 * Math.sin(i * Math.PI / 2));
-                ctx.strokeStyle = (i === 0) ? '#fb7185' : '#94a3b8'; // 1本赤色の目印
+                ctx.strokeStyle = (i === 0) ? '#fb7185' : '#94a3b8';
                 ctx.lineWidth = (i === 0) ? 5 : 3;
                 ctx.stroke();
             }
 
-            // ハブ（中心軸）
             ctx.beginPath();
-            ctx.arc(0, 0, 12, 0, 2 * Math.PI);
+            ctx.arc(0, 0, 10, 0, 2 * Math.PI);
             ctx.fillStyle = '#c084fc';
             ctx.fill();
             ctx.restore();
 
-            // モニタテキスト更新
             document.getElementById('disp-vfb').textContent = v_fb.toFixed(1);
             document.getElementById('disp-rpm').textContent = (v_fb * 60 / (2 * Math.PI)).toFixed(1);
             document.getElementById('disp-pwm').textContent = Math.round(a_pwm);
@@ -862,17 +876,16 @@
             function step() {
                 if (!isPlaying) return;
                 if (animStep >= simData.log_v_fb.length) {
-                    animStep = 0; // ループ再生
+                    animStep = 0;
                 }
                 const v_fb  = simData.log_v_fb[animStep];
                 const a_pwm = simData.log_a_pwm[animStep];
                 const enc   = simData.log_x_enc[animStep];
 
-                // 1ステップ (1ms) あたりの回転角加算
-                wheelAngle += v_fb * 0.001 * 5; // 視覚化のためアニメーション倍速化
+                wheelAngle += v_fb * 0.001 * 5;
                 drawWheel(wheelAngle, v_fb, a_pwm, enc);
 
-                animStep += 2; // 2ms刻みで再生
+                animStep += 2;
                 animId = requestAnimationFrame(step);
             }
             step();
