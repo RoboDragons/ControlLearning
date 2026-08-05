@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RDS 車輪速度制御モデル (wheel.m) - 課題解説スライド</title>
+    
+    <!-- MathJax 3 Configuration -->
+    <script>
+        MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                processEscapes: true
+            },
+            options: {
+                skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+            },
+            startup: {
+                pageReady: () => {
+                    return MathJax.startup.defaultPageReady().then(() => {
+                        console.log('MathJax initial typesetting complete');
+                    });
+                }
+            }
+        };
+    </script>
+    <script type="text/javascript" id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Noto+Sans+JP:wght@400;500;700&family=Outfit:wght@600;800&display=swap" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --bg-card: #1e293b;
+            --text-main: #f8fafc;
+            --text-sub: #94a3b8;
+            --accent-blue: #38bdf8;
+            --accent-purple: #c084fc;
+            --accent-emerald: #34d399;
+            --accent-rose: #fb7185;
+            --border-color: #334155;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', 'Noto Sans JP', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Navigation Header */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 2rem;
+            background-color: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-color);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.25rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        nav button {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            margin-left: 0.5rem;
+            transition: all 0.2s ease;
+        }
+
+        nav button:hover, nav button.active {
+            background: var(--accent-blue);
+            color: var(--bg-dark);
+            border-color: var(--accent-blue);
+        }
+
+        /* Main Layout */
+        main {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 1.5rem;
+        }
+
+        /* Slide Container */
+        .slide-container {
+            width: 100%;
+            max-width: 1100px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 2.5rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+            display: none;
+            flex-direction: column;
+            gap: 1.25rem;
+            animation: fadeIn 0.4s ease;
+        }
+
+        .slide-container.active {
+            display: flex;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .slide-title {
+            font-size: 1.7rem;
+            font-weight: 700;
+            color: var(--accent-blue);
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 0.75rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .slide-number {
+            font-size: 0.9rem;
+            color: var(--text-sub);
+            font-weight: 400;
+        }
+
+        .content-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .full-width {
+            grid-column: 1 / -1;
+        }
+
+        .card-box {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.25rem;
+            min-width: 0;
+            word-break: break-word;
+        }
+
+        .card-box h3 {
+            font-size: 1.1rem;
+            color: var(--accent-purple);
+            margin-bottom: 0.75rem;
+        }
+
+        p, li {
+            line-height: 1.6;
+            color: var(--text-main);
+            font-size: 0.95rem;
+        }
+
+        ul, ol {
+            padding-left: 1.25rem;
+        }
+
+        /* Math Display & Overflow Fix */
+        .math-block {
+            background: #0f172a;
+            border-left: 4px solid var(--accent-blue);
+            padding: 0.85rem 1rem;
+            margin: 0.75rem 0;
+            border-radius: 6px;
+            overflow-x: auto;
+            max-width: 100%;
+        }
+
+        mjx-container {
+            max-width: 100% !important;
+            overflow-x: auto !important;
+            overflow-y: hidden !important;
+            padding: 2px 0;
+        }
+
+        mjx-container[jax="SVG"] svg {
+            max-width: 100% !important;
+            height: auto !important;
+            display: inline-block;
+        }
+
+        .highlight-box {
+            background: rgba(52, 211, 153, 0.1);
+            border: 1px solid var(--accent-emerald);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+
+        .highlight-box h4 {
+            color: var(--accent-emerald);
+            margin-bottom: 0.5rem;
+        }
+
+        /* SVG Block Diagram */
+        .diagram-container {
+            width: 100%;
+            overflow-x: auto;
+            background: #0f172a;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1rem;
+            display: flex;
+            justify-content: center;
+        }
+
+        /* Simulation Layout */
+        .sim-layout {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: 1.5rem;
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.3rem;
+        }
+
+        .control-group label {
+            font-size: 0.85rem;
+            color: var(--text-sub);
+        }
+
+        .control-group input[type="range"], .control-group select {
+            width: 100%;
+        }
+
+        canvas {
+            background: #0f172a;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-action {
+            background: var(--accent-emerald);
+            color: var(--bg-dark);
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .btn-action:hover {
+            opacity: 0.9;
+        }
+
+        /* Footer Controls */
+        footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 2rem;
+            background-color: var(--bg-card);
+            border-top: 1px solid var(--border-color);
+        }
+
+        .btn-nav {
+            background: var(--accent-blue);
+            color: var(--bg-dark);
+            border: none;
+            padding: 0.6rem 1.2rem;
+            border-radius: 8px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .btn-nav:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo">RDS WHEEL CONTROL // SLIDES</div>
+        <nav>
+            <button class="nav-tab active" onclick="goToSlide(0)">スライド一覧</button>
+            <button class="nav-tab" onclick="goToSlide(5)">シミュレータ</button>
+        </nav>
+    </header>
+
+    <main>
+        <!-- Slide 1: タイトルと制御ブロック線図 (SVG) -->
+        <div class="slide-container active" id="slide-0">
+            <div class="slide-title">
+                RDS 車輪速度制御モデル (wheel.m) の理論と演習
+                <span class="slide-number">Slide 1 / 6</span>
+            </div>
+            <div class="card-box full-width" style="text-align: center; padding: 1.5rem 1.5rem;">
+                <h1 style="font-size: 2rem; margin-bottom: 0.75rem; background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                    車輪速度制御モデル (wheel.m) 解説＆演習ガイド
+                </h1>
+                <p style="font-size: 1rem; color: var(--text-sub); margin-bottom: 1.25rem;">
+                    InternalSoftwareE2023 の同定モデル・状態空間表現・PID/FF制御・エンコーダ速度推定・車輪回転視覚化
+                </p>
+                
+                <!-- SVG 制御ブロックダイアグラム -->
+                <div class="diagram-container">
+                    <svg width="900" height="220" viewBox="0 0 900 220" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                                <path d="M 0 0 L 10 5 L 0 10 z" fill="#38bdf8" />
+                            </marker>
+                            <marker id="arrow-green" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                                <path d="M 0 0 L 10 5 L 0 10 z" fill="#34d399" />
+                            </marker>
+                            <linearGradient id="grad-block" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stop-color="#1e293b" />
+                                <stop offset="100%" stop-color="#0f172a" />
+                            </linearGradient>
+                        </defs>
+
+                        <rect x="0" y="0" width="900" height="220" fill="#0f172a" rx="8" />
+
+                        <!-- 目標値 v_ref 矢印 -->
+                        <text x="15" y="65" fill="#f8fafc" font-size="13" font-weight="600">目標速度 v_ref</text>
+                        <text x="35" y="82" fill="#94a3b8" font-size="11">[rad/s]</text>
+                        <line x1="20" y1="95" x2="100" y2="95" stroke="#38bdf8" stroke-width="2.5" marker-end="url(#arrow)" />
+
+                        <!-- 比較器 -->
+                        <circle cx="115" cy="95" r="14" fill="#1e293b" stroke="#38bdf8" stroke-width="2" />
+                        <text x="105" y="92" fill="#34d399" font-size="14" font-weight="bold">+</text>
+                        <text x="111" y="118" fill="#fb7185" font-size="14" font-weight="bold">-</text>
+
+                        <!-- 偏差 e(t) 矢印 -->
+                        <line x1="129" y1="95" x2="160" y2="95" stroke="#38bdf8" stroke-width="2" marker-end="url(#arrow)" />
+                        <text x="135" y="87" fill="#94a3b8" font-size="11">偏差 e</text>
+
+                        <!-- コントローラ (PID + FF) ブロック -->
+                        <rect x="165" y="65" width="130" height="60" rx="8" fill="url(#grad-block)" stroke="#c084fc" stroke-width="2" />
+                        <text x="185" y="90" fill="#c084fc" font-size="13" font-weight="bold">コントローラ</text>
+                        <text x="178" y="110" fill="#f8fafc" font-size="11">PID + FF制御</text>
+
+                        <!-- 飽和制限 Saturation ブロック -->
+                        <line x1="295" y1="95" x2="320" y2="95" stroke="#38bdf8" stroke-width="2" marker-end="url(#arrow)" />
+                        <rect x="325" y="70" width="85" height="50" rx="6" fill="url(#grad-block)" stroke="#334155" stroke-width="1.5" />
+                        <text x="343" y="92" fill="#94a3b8" font-size="11">飽和制限</text>
+                        <text x="338" y="108" fill="#fb7185" font-size="11">±3198</text>
+
+                        <!-- 制御入力 a_pwm 矢印 -->
+                        <line x1="410" y1="95" x2="455" y2="95" stroke="#38bdf8" stroke-width="2.5" marker-end="url(#arrow)" />
+                        <text x="415" y="85" fill="#38bdf8" font-size="12" font-weight="bold">a_pwm</text>
+
+                        <!-- プラント (x' = Ax + Bu) ブロック -->
+                        <rect x="460" y="60" width="155" height="70" rx="8" fill="url(#grad-block)" stroke="#38bdf8" stroke-width="2" />
+                        <text x="475" y="85" fill="#38bdf8" font-size="13" font-weight="bold">モータプラント</text>
+                        <text x="472" y="105" fill="#f8fafc" font-size="12">x' = Ax + Bu</text>
+                        <text x="470" y="121" fill="#94a3b8" font-size="10">x = [x_enc; v_mot]</text>
+
+                        <!-- 出力方程式 y = Cx + d ブロック -->
+                        <line x1="615" y1="95" x2="645" y2="95" stroke="#38bdf8" stroke-width="2" marker-end="url(#arrow)" />
+                        <rect x="650" y="70" width="105" height="50" rx="6" fill="url(#grad-block)" stroke="#334155" stroke-width="1.5" />
+                        <text x="662" y="92" fill="#f8fafc" font-size="11">y = Cx + d</text>
+                        <text x="665" y="108" fill="#34d399" font-size="10">C=[1 0], d=0</text>
+
+                        <!-- エンコーダ出力 x_enc 矢印 -->
+                        <line x1="755" y1="95" x2="880" y2="95" stroke="#34d399" stroke-width="2.5" marker-end="url(#arrow-green)" />
+                        <text x="770" y="85" fill="#34d399" font-size="12" font-weight="bold">x_enc [pulse]</text>
+                        <circle cx="810" cy="95" r="4" fill="#34d399" />
+
+                        <!-- フィードバックパス -->
+                        <line x1="810" y1="95" x2="810" y2="175" stroke="#34d399" stroke-width="2" />
+                        <line x1="810" y1="175" x2="710" y2="175" stroke="#34d399" stroke-width="2" marker-end="url(#arrow-green)" />
+
+                        <!-- 速度推定 ブロック -->
+                        <rect x="520" y="145" width="185" height="60" rx="8" fill="url(#grad-block)" stroke="#34d399" stroke-width="2" />
+                        <text x="545" y="168" fill="#34d399" font-size="12" font-weight="bold">速度推定処理</text>
+                        <text x="532" y="188" fill="#f8fafc" font-size="11">後退差分 + 60Hz LPF</text>
+
+                        <!-- FB 信号 v_fb 矢印 -->
+                        <line x1="520" y1="175" x2="115" y2="175" stroke="#34d399" stroke-width="2" />
+                        <line x1="115" y1="175" x2="115" y2="114" stroke="#34d399" stroke-width="2" marker-end="url(#arrow-green)" />
+                        <text x="280" y="165" fill="#34d399" font-size="12" font-weight="bold">v_fb [rad/s] (FB信号)</text>
+                    </svg>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 2: プラントモデル導出 -->
+        <div class="slide-container" id="slide-1">
+            <div class="slide-title">
+                モータ同定モデルと状態空間表現 ($\dot{x} = Ax + Bu$)
+                <span class="slide-number">Slide 2 / 6</span>
+            </div>
+            <div class="content-grid">
+                <div class="card-box">
+                    <h3>RDS 実機同定モデル (`ff_coeff`)</h3>
+                    <p>RDS コード内の同定伝達関数（1次遅れ要素，$T_s = 0.001$ s）：</p>
+                    <div class="math-block">
+                        $$v_{\mathrm{mot}}[k] = 0.9504 v_{\mathrm{mot}}[k-1] + 0.01039 a_{\mathrm{pwm}}[k]$$
+                    </div>
+                    <p>連続時間極 $a_m$ および入力ゲイン $b_m$ の算出：</p>
+                    <div class="math-block">
+                        $$e^{a_m T_s} = 0.9504 \implies a_m = \frac{\ln(0.9504)}{0.001} \approx -50.8924 \text{ rad/s}$$
+                        $$b_m = \frac{0.01039}{1 - 0.9504} \cdot (-a_m) \approx 10.6605 \text{ rad/(s}^2 \cdot \text{count)}$$
+                    </div>
+                </div>
+                <div class="card-box">
+                    <h3>状態変数と連続時間状態空間行列</h3>
+                    <p>状態変数 $x(t) = \begin{bmatrix} x_{\mathrm{enc}}(t) \\ v_{\mathrm{mot}}(t) \end{bmatrix}$（位置 [pulse]，モータ角速度 [rad/s]）：</p>
+                    <div class="math-block">
+                        $$\dot{x}(t) = \begin{bmatrix} 0 & K_{\mathrm{enc}} \\ 0 & a_m \end{bmatrix} x(t) + \begin{bmatrix} 0 \\ b_m \end{bmatrix} u(t)$$
+                    </div>
+                    <p>ここで $K_{\mathrm{enc}} = \dfrac{\text{MOT\_PLS\_PER\_1REV}}{2\pi} \approx 1303.797$ [pulse/rad]．</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 3: 出力方程式とエンコーダ量子化 -->
+        <div class="slide-container" id="slide-2">
+            <div class="slide-title">
+                出力方程式 ($y = Cx + d$) とエンコーダパルス処理
+                <span class="slide-number">Slide 3 / 6</span>
+            </div>
+            <div class="content-grid">
+                <div class="card-box">
+                    <h3>出力方程式 $y = Cx + d$</h3>
+                    <p>観測量 $y = x_{\mathrm{enc}}$ [pulse] を直接取り出す出力行列：</p>
+                    <div class="math-block">
+                        $$C = \begin{bmatrix} 1 & 0 \end{bmatrix}, \quad d = 0$$
+                        $$y(t) = C x(t) + d = x_{\mathrm{enc}}(t) \quad [\text{pulse}]$$
+                    </div>
+                    <p>離散化（ZOH厳密離散化）による更新式：</p>
+                    <div class="math-block">
+                        $$x[k+1] = A_d x[k] + B_d a_{\mathrm{pwm}}[k]$$
+                    </div>
+                </div>
+                <div class="card-box">
+                    <h3>エンコーダのパルス量子化 (離散化ノイズ)</h3>
+                    <p>実機エンコーダは 32bit 整数パルスを離散的にカウントするため：</p>
+                    <div class="math-block">
+                        $$x_{\mathrm{enc, meas}}[k] = \text{round}(x_{\mathrm{enc}}[k])$$
+                    </div>
+                    <div class="highlight-box">
+                        <h4>💡 実機再現の重要性</h4>
+                        <p>パルスを整数化することで，低速時に後退差分を取った際の段階的なステップノイズ（離散化ノイズ）が再現され，フィルタ処理の重要性が視覚化されます．</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 4: コントローラ設計 -->
+        <div class="slide-container" id="slide-3">
+            <div class="slide-title">
+                コントローラ設計（PID 制御 + FF 制御項）
+                <span class="slide-number">Slide 4 / 6</span>
+            </div>
+            <div class="content-grid">
+                <div class="card-box">
+                    <h3>PID コントローラ（`pid.hpp` 準拠）</h3>
+                    <p>ゲイン定数：$K_p = 2.0, K_i = 200.0, K_d = 0.0$</p>
+                    <div class="math-block">
+                        $$e[k] = v_{\mathrm{ref}}[k] - v_{\mathrm{fb}}[k]$$
+                        $$u_{\mathrm{pid}}[k] = K_p e[k] + K_i \sum T_s e[k] + K_d \frac{e[k] - e[k-1]}{T_s}$$
+                    </div>
+                    <p><strong>Anti-windup:</strong> 目標速度の符号反転（$v_{\mathrm{ref}}[k-1] \cdot v_{\mathrm{ref}}[k] < 0$）時に積分値を 0 リセット．</p>
+                </div>
+                <div class="card-box">
+                    <h3>FF (Feed-Forward) 制御項と飽和処理</h3>
+                    <p>RDS 実機の FF 制御（同定モデル逆フィルタ + 120Hz LPF）：</p>
+                    <div class="math-block">
+                        $$u_{\mathrm{ff}}[k] = \text{LPF}_{120\mathrm{Hz}} \left( \frac{v_{\mathrm{ref}}[k] - 0.9504 v_{\mathrm{ref}}[k-1]}{0.01039} \right)$$
+                    </div>
+                    <p><strong>全制御入力の制限（飽和限界）:</strong></p>
+                    <div class="math-block">
+                        $$a_{\mathrm{pwm}}[k] = \text{clamp}(u_{\mathrm{pid}}[k] + u_{\mathrm{ff}}[k], -3198, 3198)$$
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 5: 後退差分と 60Hz 2次 LPF による速度推定 -->
+        <div class="slide-container" id="slide-4">
+            <div class="slide-title">
+                微分器 + 60Hz 2次 LPF による速度推定
+                <span class="slide-number">Slide 5 / 6</span>
+            </div>
+            <div class="content-grid">
+                <div class="card-box">
+                    <h3>後退差分によるパルスレート換算</h3>
+                    <p>エンコーダ位置パルス差分からパルス速度 [pulse/s] へ変換：</p>
+                    <div class="math-block">
+                        $$\Delta x_{\mathrm{enc}}[k] = x_{\mathrm{enc, meas}}[k] - x_{\mathrm{enc, meas}}[k-1]$$
+                        $$u_{\mathrm{lpf}}[k] = \Delta x_{\mathrm{enc}}[k] \times 1000.0 \quad [\text{pulse/s}]$$
+                    </div>
+                </div>
+                <div class="card-box">
+                    <h3>60Hz 2次バターワース LPF 差分方程式</h3>
+                    <p>`z_transform.hpp` 内の `lpf_2nd_coeff_60hz` 係数による計算：</p>
+                    <div class="math-block">
+                        $$\begin{aligned}
+                        y_{\mathrm{lpf}}[k] &= b_0 u_{\mathrm{lpf}}[k] + b_1 u_{\mathrm{lpf}}[k-1] + b_2 u_{\mathrm{lpf}}[k-2] \\
+                        &\quad - a_1 y_{\mathrm{lpf}}[k-1] - a_2 y_{\mathrm{lpf}}[k-2]
+                        \end{aligned}$$
+                    </div>
+                    <p style="font-size: 0.88rem; color: var(--text-sub); margin-top: 0.25rem;">
+                        係数：$a_1 = -1.475480, a_2 = 0.586920, b_0 = b_2 = 0.027860, b_1 = 0.055720$
+                    </p>
+                    <p style="margin-top: 0.75rem;"><strong>単位変換:</strong></p>
+                    <div class="math-block">
+                        $$v_{\mathrm{fb}}[k] = K_{\mathrm{p2r}} \times y_{\mathrm{lpf}}[k] \quad [\text{rad/s}]$$
+                    </div>
+                    <p style="font-size: 0.85rem; color: var(--text-sub); margin-top: 0.2rem;">
+                        ※ $K_{\mathrm{p2r}} = \text{WHL\_PULSESEC\_TO\_MOT\_ANGVEL} = \frac{2\pi}{\text{MOT\_PLS\_PER\_1REV}}$ [rad/pulse]
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 6: シミュレータ＆車輪回転ビジュアルアニメーション -->
+        <div class="slide-container" id="slide-5">
+            <div class="slide-title">
+                【車輪回転アニメーション機能】`wheel.m` シミュレータ
+                <span class="slide-number">Slide 6 / 6</span>
+            </div>
+            <div class="sim-layout">
+                <div class="controls card-box">
+                    <h3>シミュレータ設定</h3>
+                    <div class="control-group">
+                        <label>目標速度 $v_{ref}$ [rad/s]: <span id="val-vref">100</span></label>
+                        <input type="range" id="param-vref" min="10" max="300" step="10" value="100" oninput="updateSim()">
+                    </div>
+                    <div class="control-group">
+                        <label>比例ゲイン $K_p$: <span id="val-kp">2.0</span></label>
+                        <input type="range" id="param-kp" min="0" max="10" step="0.2" value="2.0" oninput="updateSim()">
+                    </div>
+                    <div class="control-group">
+                        <label>積分ゲイン $K_i$: <span id="val-ki">200.0</span></label>
+                        <input type="range" id="param-ki" min="0" max="500" step="10" value="200" oninput="updateSim()">
+                    </div>
+                    <div class="control-group">
+                        <label>FF 制御モード:</label>
+                        <select id="param-ff" onchange="updateSim()">
+                            <option value="true">有効 (PID + FF)</option>
+                            <option value="false">無効 (PIDのみ)</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label>パルス量子化 (離散化):</label>
+                        <select id="param-quant" onchange="updateSim()">
+                            <option value="true">有効 (round)</option>
+                            <option value="false">無効 (連続)</option>
+                        </select>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+                        <button class="btn-action" onclick="togglePlay()"><span id="play-icon">▶ 再生</span></button>
+                        <button class="btn-action" style="background: var(--accent-rose);" onclick="resetAnim()">↺ リセット</button>
+                    </div>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 1rem; min-width: 0;">
+                    <!-- 車輪回転ビジュアル & スピードメーター Canvas -->
+                    <div style="display: flex; gap: 1rem; align-items: center;">
+                        <canvas id="wheelAnimCanvas" width="180" height="180"></canvas>
+                        <div style="flex: 1; background: #0f172a; border-radius: 8px; border: 1px solid var(--border-color); padding: 0.85rem; font-size: 0.85rem;">
+                            <h4 style="color: var(--accent-emerald); margin-bottom: 0.4rem;">リアルタイム車輪モニタ</h4>
+                            <p>推定速度 $v_{fb}$: <strong id="disp-vfb" style="color: var(--accent-rose); font-size: 1.1rem;">0.0</strong> rad/s</p>
+                            <p>モータ回転数: <strong id="disp-rpm" style="color: var(--accent-blue);">0.0</strong> rpm</p>
+                            <p>制御入力 $a_{pwm}$: <strong id="disp-pwm" style="color: var(--accent-purple);">0</strong> count</p>
+                            <p>エンコーダ位置: <strong id="disp-enc" style="color: var(--text-sub);">0</strong> pulse</p>
+                        </div>
+                    </div>
+                    <div style="height: 160px; position: relative;">
+                        <canvas id="chartVelCanvas"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <footer>
+        <button class="btn-nav" id="btn-prev" onclick="prevSlide()">◀ 前へ</button>
+        <span id="slide-indicator" style="font-weight: 600; color: var(--text-sub);">Slide 1 / 6</span>
+        <button class="btn-nav" id="btn-next" onclick="nextSlide()">次へ ▶</button>
+    </footer>
+
+    <script>
+        let currentSlide = 0;
+        const totalSlides = 6;
+        let chartVelInstance = null;
+
+        // アニメーション用変数
+        let animId = null;
+        let isPlaying = false;
+        let animStep = 0;
+        let simData = null;
+        let wheelAngle = 0.0;
+
+        function updateSlide() {
+            document.querySelectorAll('.slide-container').forEach((slide, idx) => {
+                slide.classList.toggle('active', idx === currentSlide);
+            });
+            document.getElementById('slide-indicator').textContent = `Slide ${currentSlide + 1} / ${totalSlides}`;
+            document.getElementById('btn-prev').disabled = currentSlide === 0;
+            document.getElementById('btn-next').disabled = currentSlide === totalSlides - 1;
+
+            if (window.MathJax && window.MathJax.typesetPromise) {
+                window.MathJax.typesetPromise();
+            }
+
+            if (currentSlide === 5) {
+                setTimeout(() => {
+                    updateSim();
+                    drawWheel(0, 0, 0, 0);
+                }, 100);
+            } else {
+                stopAnim();
+            }
+        }
+
+        function nextSlide() {
+            if (currentSlide < totalSlides - 1) {
+                currentSlide++;
+                updateSlide();
+            }
+        }
+
+        function prevSlide() {
+            if (currentSlide > 0) {
+                currentSlide--;
+                updateSlide();
+            }
+        }
+
+        function goToSlide(idx) {
+            currentSlide = idx;
+            updateSlide();
+        }
+
+        // --- 車輪速度制御シミュレーション (wheel.m 同等ロジック) ---
+        function updateSim() {
+            const vref_val  = parseFloat(document.getElementById('param-vref').value);
+            const kp        = parseFloat(document.getElementById('param-kp').value);
+            const ki        = parseFloat(document.getElementById('param-ki').value);
+            const use_ff    = document.getElementById('param-ff').value === 'true';
+            const use_quant = document.getElementById('param-quant').value === 'true';
+
+            document.getElementById('val-vref').textContent = vref_val;
+            document.getElementById('val-kp').textContent   = kp;
+            document.getElementById('val-ki').textContent   = ki;
+
+            const Ts = 0.001;
+            const MOT_PLS_PER_1REV = 8192.0;
+            const WHL_PULSESEC_TO_MOT_ANGVEL = 2.0 * Math.PI / MOT_PLS_PER_1REV;
+            const K_enc = 1.0 / WHL_PULSESEC_TO_MOT_ANGVEL;
+            const PWM_MAX = 3198;
+
+            const a_m = Math.log(0.9504) / Ts;
+            const b_m = (0.01039 / (1 - 0.9504)) * (-a_m);
+
+            const Ad = [
+                [1, K_enc * (1 - Math.exp(a_m * Ts)) / (-a_m)],
+                [0, Math.exp(a_m * Ts)]
+            ];
+            const Bd = [
+                K_enc * (b_m / (-a_m)) * (Ts - (1 - Math.exp(a_m * Ts)) / (-a_m)),
+                (b_m / (-a_m)) * (1 - Math.exp(a_m * Ts))
+            ];
+
+            const ff_inv_b0 = 1.0 / 0.01039;
+            const ff_inv_a1 = -0.9504 / 0.01039;
+            const ff_lpf_a1 = -0.432736;
+            const ff_lpf_b0 = 0.283632;
+            const ff_lpf_b1 = 0.283632;
+
+            const lpf_a1 = -1.475480;
+            const lpf_a2 = 0.586920;
+            const lpf_b0 = 0.027860;
+            const lpf_b1 = 0.055720;
+            const lpf_b2 = 0.027860;
+
+            const N = 800;
+            const t_arr = [];
+            const log_v_ref = [];
+            const log_v_fb = [];
+            const log_v_mot = [];
+            const log_a_pwm = [];
+            const log_x_enc = [];
+
+            let x = [0.0, 0.0];
+            let i_sum = 0.0;
+            let e_prev = 0.0;
+            let prev_y_ref = 0.0;
+
+            let ff_u_prev = 0.0;
+            let ff_lpf_u1 = 0.0;
+            let ff_lpf_y1 = 0.0;
+
+            let lpf_u = [0.0, 0.0, 0.0];
+            let lpf_y = [0.0, 0.0, 0.0];
+
+            let x_enc_prev = 0.0;
+            let v_fb = 0.0;
+
+            for (let k = 0; k < N; k++) {
+                const t = k * Ts;
+                t_arr.push(t.toFixed(3));
+
+                let y_ref = 0.0;
+                if (t >= 0.1 && t < 0.5) y_ref = vref_val;
+                else if (t >= 0.5 && t < 0.7) y_ref = -vref_val * 0.5;
+                else y_ref = 0.0;
+
+                const err = y_ref - v_fb;
+                if (prev_y_ref * y_ref < 0.0) {
+                    i_sum = 0.0;
+                } else {
+                    i_sum += Ts * err;
+                }
+
+                const pid_pwm = kp * err + ki * i_sum;
+                prev_y_ref = y_ref;
+
+                let ff_pwm = 0.0;
+                if (use_ff) {
+                    const ff_inv_out = ff_inv_b0 * y_ref + ff_inv_a1 * ff_u_prev;
+                    ff_u_prev = y_ref;
+                    ff_pwm = ff_lpf_b0 * ff_inv_out + ff_lpf_b1 * ff_lpf_u1 - ff_lpf_a1 * ff_lpf_y1;
+                    ff_lpf_u1 = ff_inv_out;
+                    ff_lpf_y1 = ff_pwm;
+                }
+
+                const a_pwm_raw = pid_pwm + ff_pwm;
+                const a_pwm = Math.max(-PWM_MAX, Math.min(PWM_MAX, a_pwm_raw));
+
+                const x_next = [
+                    Ad[0][0] * x[0] + Ad[0][1] * x[1] + Bd[0] * a_pwm,
+                    Ad[1][0] * x[0] + Ad[1][1] * x[1] + Bd[1] * a_pwm
+                ];
+                x = x_next;
+
+                const x_enc = x[0];
+                const x_enc_meas = use_quant ? Math.round(x_enc) : x_enc;
+
+                const diff_enc = x_enc_meas - x_enc_prev;
+                x_enc_prev = x_enc_meas;
+                const backward_diff = diff_enc * 1000.0;
+
+                lpf_u = [backward_diff, lpf_u[0], lpf_u[1]];
+                const lpf_y_new = lpf_b0 * lpf_u[0] + lpf_b1 * lpf_u[1] + lpf_b2 * lpf_u[2]
+                                - lpf_a1 * lpf_y[0] - lpf_a2 * lpf_y[1];
+                lpf_y = [lpf_y_new, lpf_y[0], lpf_y[1]];
+
+                v_fb = WHL_PULSESEC_TO_MOT_ANGVEL * lpf_y_new;
+
+                log_v_ref.push(y_ref);
+                log_v_fb.push(v_fb);
+                log_v_mot.push(x[1]);
+                log_a_pwm.push(a_pwm);
+                log_x_enc.push(x_enc_meas);
+            }
+
+            simData = { t_arr, log_v_ref, log_v_fb, log_v_mot, log_a_pwm, log_x_enc };
+            renderCharts(t_arr, log_v_ref, log_v_fb, log_v_mot);
+        }
+
+        // --- 車輪回転 Canvas アニメーション描画 ---
+        function drawWheel(angle, v_fb, a_pwm, enc) {
+            const canvas = document.getElementById('wheelAnimCanvas');
+            const ctx = canvas.getContext('2d');
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+            const radius = 65;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // タイヤの外枠
+            ctx.beginPath();
+            ctx.arc(cx, cy, radius, 0, 2 * Math.PI);
+            ctx.fillStyle = '#1e293b';
+            ctx.fill();
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 4;
+            ctx.stroke();
+
+            // ホイールのスポーク (4本十字)
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.rotate(angle);
+
+            for (let i = 0; i < 4; i++) {
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(radius * 0.85 * Math.cos(i * Math.PI / 2), radius * 0.85 * Math.sin(i * Math.PI / 2));
+                ctx.strokeStyle = (i === 0) ? '#fb7185' : '#94a3b8'; // 1本赤色の目印
+                ctx.lineWidth = (i === 0) ? 5 : 3;
+                ctx.stroke();
+            }
+
+            // ハブ（中心軸）
+            ctx.beginPath();
+            ctx.arc(0, 0, 12, 0, 2 * Math.PI);
+            ctx.fillStyle = '#c084fc';
+            ctx.fill();
+            ctx.restore();
+
+            // モニタテキスト更新
+            document.getElementById('disp-vfb').textContent = v_fb.toFixed(1);
+            document.getElementById('disp-rpm').textContent = (v_fb * 60 / (2 * Math.PI)).toFixed(1);
+            document.getElementById('disp-pwm').textContent = Math.round(a_pwm);
+            document.getElementById('disp-enc').textContent = Math.round(enc);
+        }
+
+        function togglePlay() {
+            if (isPlaying) {
+                stopAnim();
+            } else {
+                startAnim();
+            }
+        }
+
+        function startAnim() {
+            if (!simData) updateSim();
+            isPlaying = true;
+            document.getElementById('play-icon').textContent = '⏸ 一時停止';
+            
+            function step() {
+                if (!isPlaying) return;
+                if (animStep >= simData.log_v_fb.length) {
+                    animStep = 0; // ループ再生
+                }
+                const v_fb  = simData.log_v_fb[animStep];
+                const a_pwm = simData.log_a_pwm[animStep];
+                const enc   = simData.log_x_enc[animStep];
+
+                // 1ステップ (1ms) あたりの回転角加算
+                wheelAngle += v_fb * 0.001 * 5; // 視覚化のためアニメーション倍速化
+                drawWheel(wheelAngle, v_fb, a_pwm, enc);
+
+                animStep += 2; // 2ms刻みで再生
+                animId = requestAnimationFrame(step);
+            }
+            step();
+        }
+
+        function stopAnim() {
+            isPlaying = false;
+            if (animId) cancelAnimationFrame(animId);
+            document.getElementById('play-icon').textContent = '▶ 再生';
+        }
+
+        function resetAnim() {
+            stopAnim();
+            animStep = 0;
+            wheelAngle = 0.0;
+            drawWheel(0, 0, 0, 0);
+        }
+
+        function renderCharts(t_arr, log_v_ref, log_v_fb, log_v_mot) {
+            const ctxVel = document.getElementById('chartVelCanvas').getContext('2d');
+            if (chartVelInstance) chartVelInstance.destroy();
+
+            chartVelInstance = new Chart(ctxVel, {
+                type: 'line',
+                data: {
+                    labels: t_arr,
+                    datasets: [
+                        { label: 'v_ref [rad/s]', data: log_v_ref, borderColor: '#38bdf8', borderWidth: 1.5, borderDash: [4, 4], pointRadius: 0 },
+                        { label: 'v_mot (真値)', data: log_v_mot, borderColor: '#34d399', borderWidth: 1.2, pointRadius: 0 },
+                        { label: 'v_fb (推定FB値)', data: log_v_fb, borderColor: '#fb7185', borderWidth: 1.5, pointRadius: 0 }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    scales: {
+                        x: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
+                        y: { title: { display: true, text: '速度 [rad/s]', color: '#94a3b8' }, ticks: { color: '#94a3b8' }, grid: { color: '#334155' } }
+                    },
+                    plugins: { legend: { labels: { color: '#f8fafc' } } }
+                }
+            });
+        }
+
+        // 初期化
+        updateSlide();
+    </script>
+</body>
+</html>
