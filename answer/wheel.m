@@ -1,5 +1,11 @@
-%% wheel.m
-%  車輪速度制御シミュレーション（RDS E2023 忠実準拠モデル）
+%% wheel.m (総合模範解答)
+%  車輪速度制御シミュレーション（RDS E2023 忠実準拠モデル・統合スクリプト）
+%
+%  【個別課題スクリプト一覧】
+%    1. task1_plant_model.m        : プラントモデル導出 (Ac, Bc, Ad, Bd, Cc, Dc)
+%    2. task2_pid_control.m        : 偏差計算，PID制御，PWM飽和処理
+%    3. task3_output_equation.m    : 状態空間モデルの出力方程式とパルス量子化
+%    4. task4_velocity_estimation.m: 後退差分と60Hz 2次バターワースLPFによる速度推定
 %
 %  【制御構造】
 %    v_ref [rad/s]
